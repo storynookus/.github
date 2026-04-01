@@ -1,0 +1,28 @@
+name: Update Startup Timer Badge
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # runs every day at midnight UTC
+  workflow_dispatch:        # lets you trigger it manually too
+
+jobs:
+  update-badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate days elapsed and update Gist
+        env:
+          GIST_ID: 465144e6971d9e1b704d7a598aab27b4  
+          GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: |
+          START_DATE="2026-03-19"      
+          TODAY=$(date +%s)
+          START=$(date -d "$START_DATE" +%s)
+          DAYS=$(( (TODAY - START) / 86400 ))
+
+          JSON="{\"schemaVersion\":1,\"label\":\"🚀 building for\",\"message\":\"${DAYS} days\",\"color\":\"blueviolet\",\"style\":\"flat-square\"}"
+
+          curl -s -X PATCH \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"files\":{\"startup-timer.json\":{\"content\":$(echo $JSON | python3 -c'import json,sys;print(json.dumps(sys.stdin.read()))')}}}" \
+            "https://api.github.com/gists/$GIST_ID"
