@@ -1,28 +1,83 @@
-name: Update Startup Timer Badge
+name: Update Startup Timer Badges
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # runs every day at midnight UTC
-  workflow_dispatch:        # lets you trigger it manually too
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
-  update-badge:
+  update-badges:
     runs-on: ubuntu-latest
     steps:
-      - name: Calculate days elapsed and update Gist
-        env:
-          GIST_ID: 465144e6971d9e1b704d7a598aab27b4  
-          GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Fetch last commit date
+        id: last_commit
         run: |
-          START_DATE="2026-03-19"      
-          TODAY=$(date +%s)
-          START=$(date -d "$START_DATE" +%s)
-          DAYS=$(( (TODAY - START) / 86400 ))
+          LAST_COMMIT=$(git log -1 --format="%cd" --date=format:"%Y-%m-%d")
+          echo "date=$LAST_COMMIT" >> $GITHUB_OUTPUT
 
-          JSON="{\"schemaVersion\":1,\"label\":\"🚀 building for\",\"message\":\"${DAYS} days\",\"color\":\"blueviolet\",\"style\":\"flat-square\"}"
+      - name: Calculate and push all badges
+        env:
+          GIST_ID: 465144e6971d9e1b704d7a598aab27b4
+          GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
+          START_DATE: "2026-02-19"
+          LAST_COMMIT: ${{ steps.last_commit.outputs.date }}
+        run: |
+          # ── Days elapsed since founding
+          TODAY_TS=$(date +%s)
+          START_TS=$(date -d "$START_DATE" +%s)
+          DAYS=$(( (TODAY_TS - START_TS) / 86400 ))
 
-          curl -s -X PATCH \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"files\":{\"startup-timer.json\":{\"content\":$(echo $JSON | python3 -c'import json,sys;print(json.dumps(sys.stdin.read()))')}}}" \
-            "https://api.github.com/gists/$GIST_ID"
+          # ── Week number
+          WEEKS=$(( DAYS / 7 ))
+
+          # ── Friendly founded date (e.g. "Jan 1, 2025")
+          FOUNDED=$(date -d "$START_DATE" "+%b %-d, %Y")
+
+          # ── Days since last commit
+          COMMIT_TS=$(date -d "$LAST_COMMIT" +%s)
+          DAYS_SINCE=$(( (TODAY_TS - COMMIT_TS) / 86400 ))
+          if [ "$DAYS_SINCE" -eq 0 ]; then
+            COMMIT_MSG="today"
+          elif [ "$DAYS_SINCE" -eq 1 ]; then
+            COMMIT_MSG="yesterday"
+          else
+            COMMIT_MSG="${DAYS_SINCE} days ago"
+          fi
+
+          # ── Milestone label
+          if [ "$DAYS" -lt 30 ]; then
+            MILESTONE="early days"
+          elif [ "$DAYS" -lt 90 ]; then
+            MILESTONE="finding product"
+          elif [ "$DAYS" -lt 180 ]; then
+            MILESTONE="building · wk $WEEKS"
+          elif [ "$DAYS" -lt 365 ]; then
+            MILESTONE="scaling · wk $WEEKS"
+          else
+            MILESTONE="year $(( DAYS / 365 )) · wk $WEEKS"
+          fi
+
+          # ── Helper to push one badge file to the gist
+          push_badge() {
+            FILE="$1"
+            LABEL="$2"
+            MESSAGE="$3"
+            COLOR="$4"
+            CONTENT="{\"schemaVersion\":1,\"label\":\"$LABEL\",\"message\":\"$MESSAGE\",\"color\":\"$COLOR\",\"style\":\"flat-square\"}"
+            ESCAPED=$(python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))" <<< "$CONTENT")
+            curl -s -X PATCH \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"files\":{\"$FILE\":{\"content\":$ESCAPED}}}" \
+              "https://api.github.com/gists/$GIST_ID" > /dev/null
+          }
+
+          push_badge "timer-founded.json"     "founded"      "$FOUNDED"    "7c3aed"
+          push_badge "timer-days.json"        "building for" "${DAYS} days" "0f766e"
+          push_badge "timer-commit.json"      "last commit"  "$COMMIT_MSG" "1d4ed8"
+          push_badge "timer-milestone.json"   "milestone"    "$MILESTONE"  "b45309"
+
+          echo "Done. Day $DAYS, Week $WEEKS, Last commit: $COMMIT_MSG"
