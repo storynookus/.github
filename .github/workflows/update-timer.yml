@@ -22,7 +22,7 @@ jobs:
         env:
           GIST_ID: 465144e6971d9e1b704d7a598aab27b4
           GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
-          START_DATE: "2026-02-19"
+          START_DATE: "2026-03-19"
           LAST_COMMIT: ${{ steps.last_commit.outputs.date }}
         run: |
           # ── Days elapsed since founding
