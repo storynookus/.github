@@ -75,9 +75,9 @@ jobs:
               "https://api.github.com/gists/$GIST_ID" > /dev/null
           }
 
-          push_badge "timer-founded.json"     "founded"      "$FOUNDED"    "7c3aed"
-          push_badge "timer-days.json"        "building for" "${DAYS} days" "0f766e"
-          push_badge "timer-commit.json"      "last commit"  "$COMMIT_MSG" "1d4ed8"
-          push_badge "timer-milestone.json"   "milestone"    "$MILESTONE"  "b45309"
+          push_badge "timer-founded.json"     "Founded"      "$FOUNDED"    "7c3aed"
+          push_badge "timer-days.json"        "Building for" "${DAYS} days" "0f766e"
+          push_badge "timer-commit.json"      "Last commit"  "$COMMIT_MSG" "1d4ed8"
+          push_badge "timer-milestone.json"   "Milestone"    "$MILESTONE"  "b45309"
 
           echo "Done. Day $DAYS, Week $WEEKS, Last commit: $COMMIT_MSG"
